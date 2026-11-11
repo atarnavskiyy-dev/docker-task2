@@ -1,0 +1,31 @@
+name: docker-compose-actions-workflow
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate a token
+        id: generate-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+      - uses: actions/checkout@v6
+      - name: Build the stack
+        run: docker compose up -d
+      - name: Check if docker-compose has the service 'nodejs-server'
+        run: docker compose ps --services | grep nodejs-server
+      - name: Check if docker-compose has the service 'angular-ui'
+        run: docker compose ps --services | grep angular-ui
+      - name: Test containers functionality
+        uses: cypress-io/github-action@v6
+        env:
+          CYPRESS_BASE_URL: http://localhost:3080
+          CYPRESS_ANGULAR_URL: http://localhost:4201
+        with:
+          working-directory: ./.github/tests
+      - name: Final Step
+        env:
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+        run: |
+          gh repo edit $GITHUB_REPOSITORY --visibility private --accept-visibility-change-consequences  
